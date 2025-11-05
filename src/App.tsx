@@ -28,8 +28,8 @@ export const App: React.FC = () => {
   const [filter, setFilter] = useState<FilterBy>(FilterBy.All);
   const [errorMessage, setErrorMessage] = useState<TypeErrMes | null>(null);
   const [isCreating, setIsCreating] = useState<boolean>(false);
-  const [isDeleted, setIsDeleted] = useState<Set<number | number[]>>(new Set());
-  const [isUpdated, setIsUpdate] = useState<Set<number | number[]>>(new Set());
+  const [isDeleted, setIsDeleted] = useState<Set<number>>(new Set());
+  const [isUpdated, setIsUpdate] = useState<Set<number>>(new Set());
 
   const activeTodosCount = todos.reduce(
     (count, todo) => count + Number(!todo.completed),
@@ -52,11 +52,11 @@ export const App: React.FC = () => {
     setTempTodo(TempTodo);
   };
 
-  const updateTodo = (id: number, data: Partial<Todo>) => {
+  const updateTodo = (id: number, data: Partial<Todo>): Promise<void> => {
     setErrorMessage(null);
 
     if (isUpdated.has(id)) {
-      return;
+      return Promise.resolve();
     }
 
     setIsUpdate(curr => {
@@ -67,7 +67,7 @@ export const App: React.FC = () => {
       return newSet;
     });
 
-    patchTodo<Todo>({ id, ...data })
+    return patchTodo<Todo>({ id, ...data })
       .then(res =>
         setTodos(curr =>
           curr.map(todo => (todo.id === id ? { ...todo, ...res } : todo)),
@@ -228,6 +228,10 @@ export const App: React.FC = () => {
     });
   };
 
+  const changeTodoTitle = (oldTodo: Todo, newTitle: string) => {
+    return updateTodo(oldTodo.id, { title: newTitle });
+  };
+
   useEffect(() => {
     setErrorMessage(null);
 
@@ -260,6 +264,7 @@ export const App: React.FC = () => {
           isDeleted={isDeleted}
           isUpdated={isUpdated}
           toggleTodo={toggleTodo}
+          changeTodoTitle={changeTodoTitle}
         />
 
         {todos.length > 0 && (

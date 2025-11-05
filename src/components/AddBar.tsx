@@ -33,7 +33,7 @@ export const AddBar = ({
         <button
           type="button"
           className={cn('todoapp__toggle-all', {
-            active: todos.some(todo => todo.completed === false),
+            active: todos.every(todo => todo.completed === true),
           })}
           data-cy="ToggleAllButton"
           onClick={toggleAllTodo}
