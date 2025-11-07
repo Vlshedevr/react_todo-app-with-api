@@ -180,6 +180,7 @@ export const App: React.FC = () => {
       setTodos(curr => curr.filter(oldTodo => oldTodo.id !== todoId));
     } catch {
       setErrorMessage(TypeErrMes.UnableDelete);
+      throw new Error();
     } finally {
       setIsDeleted(currSet => {
         const newSet = new Set(currSet);
