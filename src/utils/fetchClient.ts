@@ -9,7 +9,7 @@ function wait(delay: number) {
 
 type RequestMethod = 'GET' | 'POST' | 'PATCH' | 'DELETE';
 
-function request<T>(
+async function request<T>(
   url: string,
   method: RequestMethod = 'GET',
   data: any = null,
@@ -23,15 +23,17 @@ function request<T>(
     };
   }
 
-  return wait(100)
-    .then(() => fetch(BASE_URL + url, options))
-    .then(response => {
-      if (!response.ok) {
-        throw new Error();
-      }
+  await wait(100);
 
-      return response.json();
-    });
+  const responce = await fetch(BASE_URL + url, options);
+
+  if (!responce.ok) {
+    throw new Error();
+  }
+
+  const result = await responce.json();
+
+  return result;
 }
 
 export const client = {

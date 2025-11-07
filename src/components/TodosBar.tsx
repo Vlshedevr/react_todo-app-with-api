@@ -6,10 +6,11 @@ type Props = {
   todos: Todo[];
   tempTodo: Todo | null;
   delTodo: (todoId: number) => Promise<void>;
-  isDeleted: Set<number | number[]>;
-  isUpdated: Set<number | number[]>;
+  isDeleted: Set<number>;
+  isUpdated: Set<number>;
   toggleTodo: (oldTodo: Todo) => void;
   changeTodoTitle: (oldTodo: Todo, newTitle: string) => Promise<void>;
+  onInnerSubmitChange: (value: boolean) => void;
 };
 
 export const TodosBar = ({
@@ -20,6 +21,7 @@ export const TodosBar = ({
   isUpdated,
   toggleTodo,
   changeTodoTitle,
+  onInnerSubmitChange,
 }: Props) => {
   const [changeTitle, setChangeTitle] = useState<string>('');
   const [isChange, setIschange] = useState<number>(-1);
@@ -28,6 +30,8 @@ export const TodosBar = ({
   useEffect(() => {
     inputRef.current?.focus();
   }, [isChange]);
+
+  const isSubmiting = useRef<boolean>(false);
 
   const handlerInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setChangeTitle(e.target.value);
@@ -38,36 +42,42 @@ export const TodosBar = ({
     setChangeTitle(currtitle);
   };
 
-  const hadlesubmit = (todo: Todo) => {
+  const resetState = () => {
+    setIschange(-1);
+    setChangeTitle('');
+  };
+
+  const handleSubmit = (todo: Todo) => {
+    if (isSubmiting.current) {
+      return;
+    }
+
+    isSubmiting.current = true;
+    onInnerSubmitChange(true);
+
     const newTitle = changeTitle.trim();
 
     if (newTitle === todo.title) {
-      setIschange(-1);
-      setChangeTitle('');
+      resetState();
+      isSubmiting.current = false;
+      onInnerSubmitChange(false);
 
       return;
     }
 
-    if (!newTitle) {
-      delTodo(todo.id)
-        .then(() => {
-          setIschange(-1);
-          setChangeTitle('');
-        })
-        .catch(() => {
-          inputRef.current?.focus();
-        });
+    const action = !newTitle
+      ? delTodo(todo.id)
+      : changeTodoTitle(todo, newTitle);
 
-      return;
-    }
-
-    changeTodoTitle(todo, newTitle)
+    action
       .then(() => {
-        setIschange(-1);
-        setChangeTitle('');
+        resetState();
+        isSubmiting.current = false;
+        onInnerSubmitChange(false);
       })
       .catch(() => {
         inputRef.current?.focus();
+        isSubmiting.current = false;
       });
   };
 
@@ -77,7 +87,7 @@ export const TodosBar = ({
   ) => {
     e.preventDefault();
 
-    hadlesubmit(todoForChange);
+    handleSubmit(todoForChange);
   };
 
   const onEsc = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -115,7 +125,7 @@ export const TodosBar = ({
                 placeholder="Empty todo will be deleted"
                 value={changeTitle}
                 onChange={handlerInputChange}
-                onBlur={() => hadlesubmit(todo)}
+                onBlur={() => handleSubmit(todo)}
                 ref={inputRef}
                 onKeyDown={onEsc}
               />

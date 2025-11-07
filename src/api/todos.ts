@@ -3,8 +3,10 @@ import { client } from '../utils/fetchClient';
 
 export const USER_ID = 3659;
 
-export const getTodos = () => {
-  return client.get<Todo[]>(`/todos?userId=${USER_ID}`);
+export const getTodos = async () => {
+  const todos = await client.get<Todo[]>(`/todos?userId=${USER_ID}`);
+
+  return todos;
 };
 
 export const postTodo = (data: Omit<Todo, 'id'>) => {
@@ -15,6 +17,6 @@ export const deleteTodo = (todoId: number) => {
   return client.delete(`/todos/${todoId}`);
 };
 
-export const patchTodo = <T>(data: Partial<Todo>): Promise<T> => {
-  return client.patch(`/todos/${data.id}`, data);
+export const patchTodo = (data: Partial<Todo>) => {
+  return client.patch<Todo>(`/todos/${data.id}`, data);
 };

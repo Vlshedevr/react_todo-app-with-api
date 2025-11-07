@@ -30,6 +30,7 @@ export const App: React.FC = () => {
   const [isCreating, setIsCreating] = useState<boolean>(false);
   const [isDeleted, setIsDeleted] = useState<Set<number>>(new Set());
   const [isUpdated, setIsUpdate] = useState<Set<number>>(new Set());
+  const [titleChangeSubmit, setTitleChangeSubmit] = useState<boolean>(false);
 
   const activeTodosCount = todos.reduce(
     (count, todo) => count + Number(!todo.completed),
@@ -40,6 +41,10 @@ export const App: React.FC = () => {
     .map(comleteTodo => comleteTodo.id);
 
   const mainField = useRef<HTMLInputElement>(null);
+
+  const onInnerSubmitChange = (value: boolean) => {
+    setTitleChangeSubmit(value);
+  };
 
   const createTempTodo = (title: string) => {
     const TempTodo: Todo = {
@@ -67,13 +72,17 @@ export const App: React.FC = () => {
       return newSet;
     });
 
-    return patchTodo<Todo>({ id, ...data })
+    return patchTodo({ id, ...data })
       .then(res =>
         setTodos(curr =>
           curr.map(todo => (todo.id === id ? { ...todo, ...res } : todo)),
         ),
       )
-      .catch(() => setErrorMessage(TypeErrMes.UnableUpdate))
+      .catch(() => {
+        setErrorMessage(TypeErrMes.UnableUpdate);
+
+        throw new Error();
+      })
       .finally(() =>
         setIsUpdate(curr => {
           const newSet = new Set(curr);
@@ -154,35 +163,35 @@ export const App: React.FC = () => {
     }
   }, [filter, todos]);
 
-  const delTodo = (todoId: number) => {
+  const delTodo = async (todoId: number) => {
     setErrorMessage(null);
-    setIsDeleted(currSet => {
-      const newSet = new Set(currSet);
+
+    setIsDeleted(curr => {
+      const newSet = new Set(curr);
 
       newSet.add(todoId);
 
       return newSet;
     });
 
-    return deleteTodo(todoId)
-      .then(() => {
-        setTodos(curr => curr.filter(oldTodo => oldTodo.id !== todoId));
-      })
-      .catch(() => {
-        setErrorMessage(TypeErrMes.UnableDelete);
-      })
-      .finally(() => {
-        setIsDeleted(currSet => {
-          const newSet = new Set(currSet);
+    try {
+      await deleteTodo(todoId);
 
-          newSet.delete(todoId);
+      setTodos(curr => curr.filter(oldTodo => oldTodo.id !== todoId));
+    } catch {
+      setErrorMessage(TypeErrMes.UnableDelete);
+    } finally {
+      setIsDeleted(currSet => {
+        const newSet = new Set(currSet);
 
-          return newSet;
-        });
+        newSet.delete(todoId);
+
+        return newSet;
       });
+    }
   };
 
-  const deleteAllCompleteTodos = () => {
+  const deleteAllCompleteTodos = async () => {
     if (hasCompleteTodosId.length === 0) {
       return;
     }
@@ -197,15 +206,21 @@ export const App: React.FC = () => {
       return newSet;
     });
 
-    const deleteTodos = idToDelete.map(todoId =>
-      deleteTodo(todoId)
-        .then(() => ({ id: todoId, success: true }))
-        .catch(() => ({ id: todoId, success: false })),
-    );
+    try {
+      const result = await Promise.all(
+        idToDelete.map(async todoId => {
+          try {
+            await delTodo(todoId);
 
-    Promise.all(deleteTodos).then(results => {
-      const successIds = results.filter(r => r.success).map(r => r.id);
-      const failedCount = results.reduce(
+            return { id: todoId, success: true };
+          } catch {
+            return { id: todoId, success: false };
+          }
+        }),
+      );
+
+      const successIds = result.filter(r => r.success).map(r => r.id);
+      const failedCount = result.reduce(
         (count, todoRes) => count + Number(!todoRes.success),
         0,
       );
@@ -217,7 +232,7 @@ export const App: React.FC = () => {
       if (failedCount > 0) {
         setErrorMessage(TypeErrMes.UnableDelete);
       }
-
+    } finally {
       setIsDeleted(curr => {
         const newSet = new Set(curr);
 
@@ -225,7 +240,7 @@ export const App: React.FC = () => {
 
         return newSet;
       });
-    });
+    }
   };
 
   const changeTodoTitle = (oldTodo: Todo, newTitle: string) => {
@@ -233,16 +248,26 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
-    setErrorMessage(null);
+    const loadTodo = async () => {
+      try {
+        setErrorMessage(null);
 
-    getTodos()
-      .then(setTodos)
-      .catch(() => setErrorMessage(TypeErrMes.UnableLoad));
+        const todosRes = await getTodos();
+
+        setTodos(todosRes);
+      } catch {
+        setErrorMessage(TypeErrMes.UnableLoad);
+      }
+    };
+
+    loadTodo();
   }, []);
 
   useEffect(() => {
-    mainField.current?.focus();
-  }, [isDeleted, isCreating]);
+    if (!titleChangeSubmit) {
+      mainField.current?.focus();
+    }
+  }, [isDeleted, isCreating, titleChangeSubmit]);
 
   return (
     <div className="todoapp">
@@ -265,6 +290,7 @@ export const App: React.FC = () => {
           isUpdated={isUpdated}
           toggleTodo={toggleTodo}
           changeTodoTitle={changeTodoTitle}
+          onInnerSubmitChange={onInnerSubmitChange}
         />
 
         {todos.length > 0 && (
